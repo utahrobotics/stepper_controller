@@ -1,3 +1,4 @@
+#include <Servo.h>
 #include <ros.h>
 #include "Mobility.h"
 #include <AccelStepper.h>
@@ -21,7 +22,7 @@
  *  A2: EN        (Pin A2)
  */
 
-void messageCb(const motion_control::Mobility& toggle_msg);
+void messageCb(const motion_control::Mobility & toggle_msg);
 
 ros::NodeHandle nh;
 ros::Subscriber<motion_control::Mobility> sub("steering", &messageCb );
@@ -33,7 +34,7 @@ AccelStepper RR(AccelStepper::DRIVER, 12, 11);
 
 int numSteps;
 int center;
-int QUARTER_ROTATE = 200;
+int QUARTER_ROTATE = 220;
 boolean wheelCounterClockwise = true;
 boolean wheelClockwise = false;
 
@@ -41,7 +42,7 @@ boolean wheelClockwise = false;
  * This is the method that handles the ROS message. It will determine the location that
  * it wants each of its wheels to move to.
  */
-void messageCb(const motion_control::Mobility& toggle_msg)
+void messageCb(const motion_control::Mobility & toggle_msg)
 {
   FL.moveTo(toggle_msg.front_left);
   FR.moveTo(toggle_msg.front_right);
@@ -64,16 +65,16 @@ void calibrateMotor(AccelStepper step, int motorIndex)
     step.moveTo(QUARTER_ROTATE);
     while (digitalRead(motorIndex) == LOW)
     {
-      delay(1);
+      delayMicroseconds(10);
       step.run();
     }
 
     // Then run the counter clockwise wheel calibration method
     step.setCurrentPosition(0);
-    step.moveTo(QUARTER_ROTATE);
+    step.moveTo(-1 * QUARTER_ROTATE);
    while (digitalRead(motorIndex) == LOW)
    {
-      delay(1);
+      delayMicroseconds(10);
       step.run();
    }
     numSteps = step.currentPosition();
@@ -83,7 +84,7 @@ void calibrateMotor(AccelStepper step, int motorIndex)
     step.moveTo(-1 * center);
     while (step.run()) 
     {
-      delay(1);
+      delayMicroseconds(10);
     }
     step.setCurrentPosition(0);
     return;
@@ -93,12 +94,12 @@ void calibrateMotor(AccelStepper step, int motorIndex)
   step.moveTo(QUARTER_ROTATE);
   while (digitalRead(motorIndex) != LOW)
   {
-    delay(1);
+    delayMicroseconds(10);
     if (!step.run())
     { 
       wheelCounterClockwise = false;
       wheelClockwise = true;
-      delay(1);
+      delayMicroseconds(10);
       break;
     }
   }
@@ -107,10 +108,10 @@ void calibrateMotor(AccelStepper step, int motorIndex)
   // clockwise
   if (!wheelCounterClockwise)
   {
-    step.moveTo(-2 * QUARTER_ROTATE);
+    step.moveTo(-1 * QUARTER_ROTATE);
     while (digitalRead(motorIndex) != LOW)
     {
-      delay(1);
+      delayMicroseconds(10);
       
       if (!step.run())
       {
@@ -131,7 +132,7 @@ void calibrateMotor(AccelStepper step, int motorIndex)
   }
   while (digitalRead(motorIndex) == LOW)
   {
-    delay(1);
+    delayMicroseconds(10);
     step.run();
   }
   numSteps = step.currentPosition();
@@ -141,7 +142,7 @@ void calibrateMotor(AccelStepper step, int motorIndex)
   step.moveTo(-1 * center);
   while (step.run()) 
   {
-    delay(1);
+    delayMicroseconds(10);
   }
   step.setCurrentPosition(0);
 }
@@ -175,13 +176,13 @@ void setup()
   pinMode(A1, INPUT_PULLUP);
   
   calibrateMotor(FL, 4);
-  calibrateMotor(FR, 10);
-  calibrateMotor(RL, 13);
-  calibrateMotor(RR, 25);
+  //calibrateMotor(FR, 10);
+  //calibrateMotor(RL, 13);
+  //calibrateMotor(RR, 25);
 }
 
 void loop()
 {  
   nh.spinOnce();
-  delay(1);
+  delayMicroseconds(10);
 }
