@@ -1,85 +1,123 @@
+#include <Servo.h>
+#include <ros.h>
+#include "Mobility.h"
 #include <AccelStepper.h>
 
-using namespace std;
-
 /**
- * DESCRIPTION: This sketch is responsible for controlling the motors that steer the robot. The pin
- * assignments are as follows:
- *  D2: FL DIR    (Pin 5)
- *  D3: FL PUL    (Pin 6)
- *  D4: FL INDEX  (Pin 7)
- *  D5: FR DIR    (Pin 8)
- *  D6: FR PUL    (Pin 9)
- *  D7: FR INDEX  (Pin 10)
- *  D8: BL DIR    (Pin 11)
- *  D9: BL PUL    (Pin 12)
- *  D10: BL INDEX (Pin 13)
- *  D11: BR DIR   (Pin 14)
- *  D12: BR PUL   (Pin 15)
- *  A1: BR INDEX  (Pin 25)
- *  A2: EN        (Pin 24)
+ * DESCRIPTION: This sketch is responsible for controlling the motors that steer the robot. Queries 4 
+ * times a second. When the digital read pin reads low, it is not in the range of the magnetic center. 
+ * The pin assignments are as follows:
+ *  D2: FL DIR    (Pin 2)
+ *  D3: FL PUL    (Pin 3)
+ *  D4: FL INDEX  (Pin 4)
+ *  D5: FR DIR    (Pin 5)
+ *  D6: FR PUL    (Pin 6)
+ *  D7: FR INDEX  (Pin 7)
+ *  D8: BL DIR    (Pin 8)
+ *  D9: BL PUL    (Pin 9)
+ *  D10: BL INDEX (Pin 10)
+ *  D11: BR DIR   (Pin 11)
+ *  D12: BR PUL   (Pin 12)
+ *  A1: BR INDEX  (Pin A1)
+ *  A2: EN        (Pin A2)
  */
- 
+
+void messageCb(const motion_control::Mobility & toggle_msg);
+
+ros::NodeHandle nh;
+ros::Subscriber<motion_control::Mobility> sub("steering", &messageCb );
+
 AccelStepper FL(AccelStepper::DRIVER, 3, 2);
 AccelStepper FR(AccelStepper::DRIVER, 6, 5);
-AccelStepper BL(AccelStepper::DRIVER, 9, 8);
-AccelStepper BR(AccelStepper::DRIVER, 12, 11);
+AccelStepper RL(AccelStepper::DRIVER, 9, 8);
+AccelStepper RR(AccelStepper::DRIVER, 12, 11);
+
 int numSteps;
 int center;
-int QUARTER_ROTATE = 2000;    // TODO Find number of steps.
+int QUARTER_ROTATE = 220;
 boolean wheelCounterClockwise = true;
 boolean wheelClockwise = false;
 
+/**
+ * This is the method that handles the ROS message. It will determine the location that
+ * it wants each of its wheels to move to.
+ */
+void messageCb(const motion_control::Mobility & toggle_msg)
+{
+  FL.moveTo(toggle_msg.front_left);
+  FR.moveTo(toggle_msg.front_right);
+  RL.moveTo(toggle_msg.rear_left);
+  RR.moveTo(toggle_msg.rear_right);
+}
 
 /*
- * This method initializes the stepper's maximum speed and acceleration, sets the
- * enable pin, and calibrates the motor to determine its center.
+ * This method calibrates all the motors to determine their centers. The wheels will only rotate
+ * a quarter of a full rotation to prevent damage. This method requires that the wheels be within
+ * 90 degrees of their aligned position.
  */
 void calibrateMotor(AccelStepper step, int motorIndex)
 {
-  // Initialize maximums, enable pin, and the pull up for the index pin
-  step.setMaxSpeed(200);
-  step.setAcceleration(200);
-  step.setEnablePin(A2);
-  pinMode(motorIndex, INPUT_PULLUP);
+  // First check if the motor is already in the low range; if so, run
+  // A different calibration algorithm
+  if (digitalRead(motorIndex) == LOW)
+  {
+    // First run the motor counter clockwise to the edge of the low read
+    step.moveTo(QUARTER_ROTATE);
+    while (digitalRead(motorIndex) == LOW)
+    {
+      delayMicroseconds(10);
+      step.run();
+    }
 
+    // Then run the counter clockwise wheel calibration method
+    step.setCurrentPosition(0);
+    step.moveTo(-1 * QUARTER_ROTATE);
+   while (digitalRead(motorIndex) == LOW)
+   {
+      delayMicroseconds(10);
+      step.run();
+   }
+    numSteps = step.currentPosition();
+    center = numSteps / 2;
+
+    step.setCurrentPosition(0);
+    step.moveTo(-1 * center);
+    while (step.run()) 
+    {
+      delayMicroseconds(10);
+    }
+    step.setCurrentPosition(0);
+    return;
+  }
+  
   // Run the motor counter clockwise first to see if it can find the center
   step.moveTo(QUARTER_ROTATE);
-  while (digitalRead(motorIndex) == LOW)
+  while (digitalRead(motorIndex) != LOW)
   {
-    //Serial.println("Rotating CCW");
-    delay(1);
+    delayMicroseconds(10);
     if (!step.run())
     { 
       wheelCounterClockwise = false;
       wheelClockwise = true;
-      //Serial.println("Break loop 1");
-      delay(1);
+      delayMicroseconds(10);
       break;
     }
   }
-  //numSteps = step.currentPosition();
   
   // If the motor did not reach the full 45 degree turn, run the motor 90 degrees
   // clockwise
   if (!wheelCounterClockwise)
   {
-    step.moveTo(-2 * QUARTER_ROTATE);
-    while (digitalRead(motorIndex) == LOW)
+    step.moveTo(-1 * QUARTER_ROTATE);
+    while (digitalRead(motorIndex) != LOW)
     {
-      // Serial.println("Rotating CW");
-      delay(1);
-      // step.run();
+      delayMicroseconds(10);
+      
       if (!step.run())
       {
         wheelClockwise = false;
         break;
       }
-    }
-    
-    if (!wheelClockwise && !wheelCounterClockwise)
-    {
-      //TODO Add error message if index pin never goes low.
     }
   }
   
@@ -92,10 +130,9 @@ void calibrateMotor(AccelStepper step, int motorIndex)
   {
     step.moveTo(-1 * QUARTER_ROTATE);
   }
-  while (digitalRead(motorIndex) == HIGH)
+  while (digitalRead(motorIndex) == LOW)
   {
-    //Serial.println("Counting steps");
-    delay(1);
+    delayMicroseconds(10);
     step.run();
   }
   numSteps = step.currentPosition();
@@ -105,32 +142,47 @@ void calibrateMotor(AccelStepper step, int motorIndex)
   step.moveTo(-1 * center);
   while (step.run()) 
   {
-    // Serial.println("Centering motor");
-    delay(1);
-    //step.run();
+    delayMicroseconds(10);
   }
   step.setCurrentPosition(0);
-  Serial.println("End Calibration");
 }
 
 void setup()
 {  
   Serial.begin(9600);
-  Serial.println(digitalRead(4));
-  //FL.setMaxSpeed(200);
-  //FL.setAcceleration(200);
-  //FL.setEnablePin(A2);
+
+  // Initialize the ros node handle and subscribe to the steering topic
+  nh.initNode();
+  nh.subscribe(sub);
+
+  FL.setMaxSpeed(200);
+  FL.setAcceleration(200);
+  FL.setEnablePin(A2);
+  pinMode(4, INPUT_PULLUP);
+  
+  FR.setMaxSpeed(200);
+  FR.setAcceleration(200);
+  FR.setEnablePin(A2);
+  pinMode(7, INPUT_PULLUP);
+  
+  RL.setMaxSpeed(200);
+  RL.setAcceleration(200);
+  RL.setEnablePin(A2);
+  pinMode(10, INPUT_PULLUP);
+  
+  RR.setMaxSpeed(200);
+  RR.setAcceleration(200);
+  RR.setEnablePin(A2);
+  pinMode(A1, INPUT_PULLUP);
   
   calibrateMotor(FL, 4);
-  // calibrateMotor(FR, 10);
-  // calibrateMotor(BL, 13);
-  // calibrateMotor(BR, 25);
-  // FL.moveTo(QUARTER_ROTATE);
+  //calibrateMotor(FR, 10);
+  //calibrateMotor(RL, 13);
+  //calibrateMotor(RR, 25);
 }
 
 void loop()
 {  
-  
-  
-  //FL.run();
+  nh.spinOnce();
+  delayMicroseconds(10);
 }
