@@ -22,7 +22,7 @@
  *  A2: EN        (Pin A2)
  */
 
-void messageCb(const motion_control::Mobility & toggle_msg);
+void messageCb(const motion_control::Mobility& toggle_msg);
 
 ros::NodeHandle nh;
 ros::Subscriber<motion_control::Mobility> sub("steering", &messageCb );
@@ -42,7 +42,7 @@ boolean wheelClockwise = false;
  * This is the method that handles the ROS message. It will determine the location that
  * it wants each of its wheels to move to.
  */
-void messageCb(const motion_control::Mobility & toggle_msg)
+void messageCb(const motion_control::Mobility& toggle_msg)
 {
   FL.moveTo(toggle_msg.front_left);
   FR.moveTo(toggle_msg.front_right);
@@ -149,29 +149,29 @@ void calibrateMotor(AccelStepper step, int motorIndex)
 
 void setup()
 {  
-  Serial.begin(9600);
+  Serial.begin(57600);
 
   // Initialize the ros node handle and subscribe to the steering topic
   nh.initNode();
   nh.subscribe(sub);
 
   FL.setMaxSpeed(200);
-  FL.setAcceleration(200);
+  FL.setAcceleration(100);
   FL.setEnablePin(A2);
   pinMode(4, INPUT_PULLUP);
   
   FR.setMaxSpeed(200);
-  FR.setAcceleration(200);
+  FR.setAcceleration(100);
   FR.setEnablePin(A2);
   pinMode(7, INPUT_PULLUP);
   
   RL.setMaxSpeed(200);
-  RL.setAcceleration(200);
+  RL.setAcceleration(100);
   RL.setEnablePin(A2);
   pinMode(10, INPUT_PULLUP);
   
   RR.setMaxSpeed(200);
-  RR.setAcceleration(200);
+  RR.setAcceleration(100);
   RR.setEnablePin(A2);
   pinMode(A1, INPUT_PULLUP);
   
