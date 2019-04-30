@@ -176,9 +176,9 @@ void setup()
   pinMode(A1, INPUT_PULLUP);
   
   calibrateMotor(FL, 4);
-  //calibrateMotor(FR, 10);
-  //calibrateMotor(RL, 13);
-  //calibrateMotor(RR, 25);
+  calibrateMotor(FR, 10);
+  calibrateMotor(RL, 13);
+  calibrateMotor(RR, 25);
 }
 
 void loop()
