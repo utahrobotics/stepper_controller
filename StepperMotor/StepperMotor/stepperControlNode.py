@@ -9,7 +9,7 @@ class StepperNode:
 		
 		rospy.loginfo("connecting to stepper arduino")
 		
-		port = rospy.get_param("~stepper_port", "/dev/ttyUSB0")
+		port = rospy.get_param("~stepper_port", "/dev/stepperControl")
         	baud_rate = int(rospy.get_param("~baud", "28800"))
 		
 		self.ard_com = serial.Serial(port,baud_rate, timeout=5)
